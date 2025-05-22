@@ -9,7 +9,7 @@ from datetime import datetime
 try:
     client = MongoClient('mongodb+srv://tarijuguete:9Ge7BCv6j0YCMe06@cluster0.ccj5v.mongodb.net/University?retryWrites=true&w=majority&appName=Cluster0')
     db = client['University']
-    preguntas_collection = db['preguntas']
+    preguntas_collection = db['Question']
     usuarios_collection = db['usuarios_encuesta']
     print("Conexión a MongoDB Atlas establecida correctamente")
 except Exception as e:
