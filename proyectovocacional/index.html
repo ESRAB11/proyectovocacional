@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Preguntas y Respuestas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      padding: 20px;
+    }
+    .card {
+      background-color: white;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .pregunta {
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .respuesta {
+      margin-left: 15px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Preguntas y Respuestas</h1>
+<div id="contenedor"></div>
+
+<script>
+  // Obtener tokens desde localStorage (si existen), o usar los tokens iniciales una sola vez
+  //localStorage.removeItem("accessToken");
+  //localStorage.removeItem("refreshToken");
+
+  let accessToken = localStorage.getItem("accessToken") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQ3MTgwNzU4LCJpYXQiOjE3NDcxODA0NTgsImp0aSI6IjU2MGE2MzA4YTg2YjQ2MzA5OTVhOTA4OTE3MDQxYTM5IiwidXNlcl9pZCI6MX0.7NIxPR8GwE9N40wOZVC2kTdwFZseE8Ft3-LaQud_odA";
+  let refreshToken = localStorage.getItem("refreshToken") || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc1MDM4MTQwMywiaWF0IjoxNzQ3Nzg5NDAzLCJqdGkiOiIxNjVmNzIxNjljNGE0NTkwOWQ0YmNmYmU5ZTVlYmY3YiIsInVzZXJfaWQiOjF9.JRBRE8RQ6eq7CKfbE0pskekYuIns9-nx77GWRWw3-E4";
+
+  // Guardar los tokens en localStorage (solo si no estaban ya)
+  localStorage.setItem("accessToken", accessToken);
+  localStorage.setItem("refreshToken", refreshToken);
+
+  async function fetchWithAuth(url, options = {}) {
+    // Actualiza token desde localStorage en caso de que haya sido refrescado
+    accessToken = localStorage.getItem("accessToken");
+    refreshToken = localStorage.getItem("refreshToken");
+
+    options.headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    };
+
+    let response = await fetch(url, options);
+
+    if (response.status === 401) {
+      console.warn("Access token expirado. Intentando refrescar...");
+
+      const refreshResponse = await fetch("http://127.0.0.1:8000/api/token/refresh/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ refresh: refreshToken })
+      });
+
+      if (refreshResponse.ok) {
+        const data = await refreshResponse.json();
+        accessToken = data.access;
+
+        // Guardar el nuevo access token
+        localStorage.setItem("accessToken", accessToken);
+        console.log("Nuevo access token actualizado en localStorage.");
+
+        // Reintentar la solicitud original
+        options.headers.Authorization = `Bearer ${accessToken}`;
+        response = await fetch(url, options);
+      } else {
+        throw new Error("Refresh token inválido o expirado. Necesario reautenticarse.");
+      }
+    }
+
+    return response;
+  }
+
+  // Usar la función para obtener preguntas protegidas
+  fetchWithAuth("http://127.0.0.1:8000/api/preguntas/")
+    .then(response => response.json())
+    .then(data => {
+      const contenedor = document.getElementById("contenedor");
+      contenedor.innerHTML = "";
+
+      data.forEach(item => {
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+          <div class="pregunta">${item.pregunta}</div>
+          <div class="respuesta"><strong>Respuesta 1:</strong> ${item.respuestas.respuesta1}</div>
+          <div class="respuesta"><strong>Respuesta 2:</strong> ${item.respuestas.respuesta2}</div>
+        `;
+
+        contenedor.appendChild(card);
+      });
+    })
+    .catch(error => {
+      console.error("Error:", error);
+      document.getElementById("contenedor").innerHTML = "<h2>Ocurrió un error al cargar los datos.</h2>";
+    });
+</script>
+
+</body>
+</html>
